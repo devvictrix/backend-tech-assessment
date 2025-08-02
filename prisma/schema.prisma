@@ -1,40 +1,89 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String // In a real app, this should be a hash
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  cards     Card[]
-  comments  Comment[]
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
-model Card {
-  id          String    @id @default(cuid())
+enum InterviewStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  roles              Role[]
+  interviews         Interview[]
+  interviewComments  InterviewComment[]
+  interviewHistories InterviewHistory[]
+
+  @@map("users")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model Interview {
+  id          String          @id @default(cuid())
   title       String
   description String?
-  author      User      @relation(fields: [authorId], references: [id])
-  authorId    String
-  comments    Comment[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  status      InterviewStatus @default(TODO)
+  isSaved     Boolean         @default(false) @map("is_saved")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  userId   String             @map("user_id")
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments InterviewComment[]
+  history  InterviewHistory[]
+
+  @@map("interviews")
 }
 
-model Comment {
+model InterviewComment {
   id        String   @id @default(cuid())
-  content   String
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
-  card      Card     @relation(fields: [cardId], references: [id])
-  cardId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewId String    @map("interview_id")
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@map("interview_comments")
+}
+
+model InterviewHistory {
+  id        String   @id @default(cuid())
+  action    String
+  oldValue  String?  @map("old_value") @db.Text
+  newValue  String?  @map("new_value") @db.Text
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewId String    @map("interview_id")
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@map("interview_history")
 }

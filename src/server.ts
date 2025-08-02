@@ -1,12 +1,33 @@
 import app from './app';
-import { env } from './config/env'; // <-- Import env
+import { prisma } from './config';
+import { env } from './config/env';
+import { logger } from './config/logger';
 
-const PORT = env.PORT; // <-- Use env.PORT
+const server = app.listen(env.PORT, () => {
+    logger.info(`Server is running on ${env.APP_URL}`);
+});
 
-const startServer = () => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on http://localhost:${PORT}`);
+const gracefulShutdown = (signal: string) => {
+    process.on(signal, async () => {
+        logger.info(`${signal} signal received: closing HTTP server.`);
+        server.close(async () => {
+            logger.info('HTTP server closed.');
+            await prisma.$disconnect();
+            logger.info('Prisma client disconnected.');
+            process.exit(0);
+        });
     });
 };
 
-startServer();
+gracefulShutdown('SIGTERM');
+gracefulShutdown('SIGINT');
+
+process.on('unhandledRejection', (reason: Error, promise: Promise<any>) => {
+    logger.fatal(reason, 'Unhandled Rejection at Promise');
+    throw reason;
+});
+
+process.on('uncaughtException', (error: Error) => {
+    logger.fatal(error, 'Uncaught Exception thrown');
+    process.exit(1);
+});

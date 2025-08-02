@@ -1,18 +1,24 @@
-import { prisma } from '../../config';
+import { User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '@prisma/client';
-import { env } from '../../config/env'; // <-- FIX: This import was missing
+import cuid from 'cuid';
+import { userRepository } from '@/api/auth/auth.repository';
+import { LoginDto, RegisterDto } from '@/api/auth/dto';
+import { env } from '@/config/env';
+import { ApiError } from '@/core/errors/api.error';
 
 class AuthService {
-    async register(data: Pick<User, 'email' | 'password'>): Promise<Omit<User, 'password'>> {
+    public async findUserByEmail(email: string): Promise<User | null> {
+        return userRepository.findByEmail(email);
+    }
+
+    public async register(data: RegisterDto): Promise<Omit<User, 'password'>> {
         const hashedPassword = await bcrypt.hash(data.password, 10);
 
-        const user = await prisma.user.create({
-            data: {
-                email: data.email,
-                password: hashedPassword,
-            },
+        const user = await userRepository.create({
+            email: data.email,
+            password: hashedPassword,
+            key: `user_${cuid()}`,
         });
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -20,19 +26,17 @@ class AuthService {
         return userWithoutPassword;
     }
 
-    async login(credentials: Pick<User, 'email' | 'password'>): Promise<string | null> {
-        const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-        });
+    public async login(credentials: LoginDto): Promise<string> {
+        const user = await userRepository.findByEmail(credentials.email);
 
         if (!user || !(await bcrypt.compare(credentials.password, user.password))) {
-            return null; // Invalid credentials
+            throw new ApiError(401, { message: 'Invalid email or password' });
         }
 
         const token = jwt.sign(
             { userId: user.id, email: user.email },
-            env.JWT_SECRET, // <-- This line will now work correctly
-            { expiresIn: '1h' }
+            env.JWT_SECRET,
+            { expiresIn: env.JWT_EXPIRES_IN }
         );
 
         return token;
