@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '@/config/env';
-import { prisma } from '@/config';
+import { userRepository } from '@/api/user/user.repository';
 import { ApiError } from '../errors/api.error';
 import { StatusCodes } from 'http-status-codes';
 
@@ -13,7 +13,7 @@ interface JwtPayload {
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, { message: 'Unauthorized: No token provided' });
+    return next(new ApiError(StatusCodes.UNAUTHORIZED, { message: 'Unauthorized: No token provided' }));
   }
 
   const token = authHeader.split(' ')[1];
@@ -21,18 +21,15 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: { roles: true },
-    });
-
+    const user = await userRepository.findByIdWithRoles(decoded.userId);
     if (!user) {
-      throw new ApiError(StatusCodes.UNAUTHORIZED, { message: 'Unauthorized: User not found' });
+      return next(new ApiError(StatusCodes.UNAUTHORIZED, { message: 'Unauthorized: User not found' }));
     }
 
     req.user = user;
+
     next();
   } catch (error) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, { message: 'Unauthorized: Invalid token' });
+    return next(new ApiError(StatusCodes.UNAUTHORIZED, { message: 'Unauthorized: Invalid token' }));
   }
 };

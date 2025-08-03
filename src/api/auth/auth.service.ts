@@ -1,29 +1,14 @@
 import { User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import cuid from 'cuid';
-import { userRepository } from '@/api/auth/auth.repository';
-import { LoginDto, RegisterDto } from '@/api/auth/dto';
+import { LoginDto } from '@/api/auth/dto';
 import { env } from '@/config/env';
 import { ApiError } from '@/core/errors/api.error';
+import { userRepository } from '@/api/user/user.repository';
 
 class AuthService {
     public async findUserByEmail(email: string): Promise<User | null> {
         return userRepository.findByEmail(email);
-    }
-
-    public async register(data: RegisterDto): Promise<Omit<User, 'password'>> {
-        const hashedPassword = await bcrypt.hash(data.password, 10);
-
-        const user = await userRepository.create({
-            email: data.email,
-            password: hashedPassword,
-            key: `user_${cuid()}`,
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
     }
 
     public async login(credentials: LoginDto): Promise<string> {

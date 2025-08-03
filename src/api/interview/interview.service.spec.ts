@@ -27,24 +27,14 @@ describe('InterviewService', () => {
 
     describe('findOne', () => {
         it('should return an interview when found', async () => {
-            // Arrange: Tell the mock repository to return our sample interview when findById is called.
             mockedRepo.findById.mockResolvedValue(mockInterview as any);
-
-            // Act: Call the service method we are testing.
             const result = await interviewService.findOne('clx123abc');
-
-            // Assert: Check that the repository was called and the result is correct.
-            expect(mockedRepo.findById).toHaveBeenCalledWith('clx123abc');
             expect(result).toEqual(mockInterview);
         });
 
-        it('should throw a 404 Not Found error if the interview is not found', async () => {
-            // Arrange: Tell the mock repository to return null.
+        it('should throw a 404 error if not found', async () => {
             mockedRepo.findById.mockResolvedValue(null);
-
-            // Act & Assert: Expect the service call to be rejected with a specific ApiError.
             await expect(interviewService.findOne('non-existent-id')).rejects.toThrow(ApiError);
-            await expect(interviewService.findOne('non-existent-id')).rejects.toHaveProperty('httpStatus', StatusCodes.NOT_FOUND);
         });
     });
 

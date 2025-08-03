@@ -1,5 +1,5 @@
 import { interviewRepository } from './interview.repository';
-import { CreateInterviewDto, UpdateInterviewDto } from './dto';
+import { CreateInterviewDto, PaginationQueryDto, UpdateInterviewDto } from './dto';
 import { ApiError } from '@/core/errors/api.error';
 import { StatusCodes } from 'http-status-codes';
 
@@ -8,8 +8,20 @@ class InterviewService {
         return interviewRepository.create(userId, data);
     }
 
-    public async findAll() {
-        return interviewRepository.findMany();
+    public async findAll(options: PaginationQueryDto) {
+        const { total, interviews } = await interviewRepository.findPaginated(options);
+        const totalPages = Math.ceil(total / options.limit);
+
+        return {
+            data: interviews,
+            meta: {
+                totalItems: total,
+                itemCount: interviews.length,
+                itemsPerPage: options.limit,
+                totalPages: totalPages,
+                currentPage: options.page,
+            },
+        };
     }
 
     public async findOne(id: string) {
@@ -37,6 +49,14 @@ class InterviewService {
         }
 
         return interviewRepository.remove(id);
+    }
+
+    public async save(id: string, userId: string) {
+        const interview = await this.findOne(id);
+        if (interview.userId !== userId) {
+            throw new ApiError(StatusCodes.FORBIDDEN, { message: 'You are not authorized to save this interview' });
+        }
+        return interviewRepository.save(id, userId);
     }
 }
 

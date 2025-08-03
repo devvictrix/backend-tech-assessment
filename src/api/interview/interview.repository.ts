@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/config';
-import { CreateInterviewDto, UpdateInterviewDto } from './dto';
+import { CreateInterviewDto, PaginationQueryDto, UpdateInterviewDto } from './dto';
 
 class InterviewRepository {
     public create(userId: string, data: CreateInterviewDto) {
@@ -28,6 +28,9 @@ class InterviewRepository {
 
     public findMany() {
         return prisma.interview.findMany({
+            where: {
+                isSaved: false,
+            },
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -40,6 +43,10 @@ class InterviewRepository {
                 comments: {
                     include: { user: { select: { id: true, email: true } } },
                     orderBy: { createdAt: 'asc' },
+                },
+                histories: {
+                    include: { user: { select: { id: true, email: true } } },
+                    orderBy: { changedAt: 'desc' },
                 },
             },
         });
@@ -80,6 +87,55 @@ class InterviewRepository {
 
     public remove(id: string) {
         return prisma.interview.delete({ where: { id } });
+    }
+
+    public async findPaginated(options: PaginationQueryDto) {
+        const { page, limit } = options;
+        const skip = (page - 1) * limit;
+
+        const [total, interviews] = await prisma.$transaction([
+            prisma.interview.count(),
+            prisma.interview.findMany({
+                where: {
+                    isSaved: false,
+                },
+                skip: skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            name: true,
+                        },
+                    },
+                },
+            }),
+        ]);
+
+        return { total, interviews };
+    }
+
+    public save(id: string, userId: string) {
+        return prisma.$transaction(async (tx) => {
+            const updatedInterview = await tx.interview.update({
+                where: { id },
+                data: { isSaved: true },
+            });
+
+            await tx.interviewHistory.create({
+                data: {
+                    action: 'SAVED',
+                    oldValue: 'isSaved: false',
+                    newValue: 'isSaved: true',
+                    interviewId: id,
+                    userId: userId,
+                },
+            });
+
+            return updatedInterview;
+        });
     }
 }
 

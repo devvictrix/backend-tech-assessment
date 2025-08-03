@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { interviewService } from './interview.service';
-import { createInterviewSchema, updateInterviewSchema } from './dto';
+import { createInterviewSchema, paginationQuerySchema, updateInterviewSchema } from './dto';
 
 class InterviewController {
     async create(req: Request, res: Response) {
@@ -12,8 +12,9 @@ class InterviewController {
     }
 
     async findAll(req: Request, res: Response) {
-        const interviews = await interviewService.findAll();
-        res.status(StatusCodes.OK).json(interviews);
+        const { page, limit } = paginationQuerySchema.parse(req.query);
+        const paginatedResult = await interviewService.findAll({ page, limit });
+        res.status(StatusCodes.OK).json(paginatedResult);
     }
 
     async findOne(req: Request, res: Response) {
@@ -32,6 +33,12 @@ class InterviewController {
         const userId = req.user!.id;
         await interviewService.remove(req.params.id, userId);
         res.status(StatusCodes.NO_CONTENT).send();
+    }
+
+    async save(req: Request, res: Response) {
+        const userId = req.user!.id;
+        const interview = await interviewService.save(req.params.id, userId);
+        res.status(StatusCodes.OK).json(interview);
     }
 }
 

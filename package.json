@@ -1,5 +1,5 @@
 {
-  "name": "backend-tech-assessment",
+  "name": "interview-management-api",
   "version": "1.0.0",
   "main": "dist/src/server.js",
   "engines": {

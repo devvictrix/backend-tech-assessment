@@ -24,19 +24,21 @@ class InterviewCommentService {
     }
 
     public async update(commentId: string, userId: string, data: UpdateCommentDto) {
-        const comment = await this.findOne(commentId);
-        if (comment.userId !== userId) {
+        const existingComment = await this.findOne(commentId);
+        if (existingComment.userId !== userId) {
             throw new ApiError(StatusCodes.FORBIDDEN, { message: 'You can only edit your own comments' });
         }
-        return interviewCommentRepository.update(commentId, data.content);
+
+        return interviewCommentRepository.update(commentId, userId, existingComment.interviewId, existingComment.content, data.content);
     }
 
     public async remove(commentId: string, userId: string) {
-        const comment = await this.findOne(commentId);
-        if (comment.userId !== userId) {
+        const existingComment = await this.findOne(commentId);
+        if (existingComment.userId !== userId) {
             throw new ApiError(StatusCodes.FORBIDDEN, { message: 'You can only delete your own comments' });
         }
-        return interviewCommentRepository.remove(commentId);
+
+        await interviewCommentRepository.remove(commentId, userId, existingComment.interviewId, existingComment.content);
     }
 }
 

@@ -13,6 +13,6 @@ interviewRoutes.route('/:id')
     .patch(interviewController.update)
     .delete(interviewController.remove);
 interviewRoutes.use('/:interviewId/comments', interviewCommentRoutes);
-interviewRoutes.use('/:interviewId/history', interviewHistoryRoutes);
+interviewRoutes.use('/:interviewId/histories', interviewHistoryRoutes);
 
 export { interviewRoutes };
