@@ -1,11 +1,12 @@
 import dotenv from 'dotenv';
 import ms from 'ms';
 import { z } from 'zod';
+import { NodeEnv } from '@/config/constants';
 
 dotenv.config();
 
 const envSchema = z.object({
-    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    NODE_ENV: z.nativeEnum(NodeEnv).default(NodeEnv.Development),
     PORT: z.coerce.number().default(3000),
     APP_URL: z.string().url('A valid APP_URL is required (e.g., http://localhost:3000)'),
     API_PREFIX: z.string().trim().min(1, 'A non-empty API_PREFIX is required (e.g., "api")'),
@@ -32,6 +33,7 @@ const envSchema = z.object({
         }),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
+    SHUTDOWN_TIMEOUT: z.coerce.number().int().default(10000),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

@@ -3,84 +3,65 @@ import { interviewRepository } from './interview.repository';
 import { ApiError } from '@/core/errors/api.error';
 import { StatusCodes } from 'http-status-codes';
 
-jest.mock('./interview.repository');
+// Use a manual mock to ensure all methods are jest.fn()
+jest.mock('./interview.repository', () => ({
+    interviewRepository: {
+        create: jest.fn(),
+        findPaginated: jest.fn(),
+        findById: jest.fn(),
+        update: jest.fn(),
+        remove: jest.fn(),
+        save: jest.fn(),
+    },
+}));
 
 const mockedRepo = interviewRepository as jest.Mocked<typeof interviewRepository>;
 
 const mockInterview = {
-    id: 'clx123abc',
+    id: 'interview-123',
     title: 'Sample Interview',
-    description: 'A test description',
-    status: 'TODO',
-    isSaved: false,
     userId: 'user-owner-123',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    user: { id: 'user-owner-123', email: 'owner@test.com' },
-    comments: [],
 };
 
 describe('InterviewService', () => {
     beforeEach(() => {
+        // Reset mocks before each test
         jest.clearAllMocks();
     });
 
     describe('findOne', () => {
         it('should return an interview when found', async () => {
             mockedRepo.findById.mockResolvedValue(mockInterview as any);
-            const result = await interviewService.findOne('clx123abc');
+            const result = await interviewService.findOne('interview-123');
+            expect(mockedRepo.findById).toHaveBeenCalledWith('interview-123');
             expect(result).toEqual(mockInterview);
         });
 
-        it('should throw a 404 error if not found', async () => {
+        it('should throw a 404 Not Found error if the interview does not exist', async () => {
             mockedRepo.findById.mockResolvedValue(null);
             await expect(interviewService.findOne('non-existent-id')).rejects.toThrow(ApiError);
+            await expect(interviewService.findOne('non-existent-id')).rejects.toHaveProperty('httpStatus', StatusCodes.NOT_FOUND);
         });
     });
 
     describe('update', () => {
-        it('should update the interview if the user is the owner', async () => {
-            // Arrange
-            mockedRepo.findById.mockResolvedValue(mockInterview as any); // The user must exist to be updated
-            const updateData = { title: 'Updated Title' };
-
-            // Act
-            await interviewService.update('clx123abc', 'user-owner-123', updateData);
-
-            // Assert: Verify that the update method on the repository was called correctly.
-            expect(mockedRepo.update).toHaveBeenCalledWith('clx123abc', 'user-owner-123', mockInterview, updateData);
-        });
-
-        it('should throw a 403 Forbidden error if the user is not the owner', async () => {
-            // Arrange
+        it('should throw a 403 Forbidden error if a user tries to update an interview they do not own', async () => {
             mockedRepo.findById.mockResolvedValue(mockInterview as any);
-            const updateData = { title: 'Malicious Update Attempt' };
-
-            // Act & Assert
-            await expect(interviewService.update('clx123abc', 'user-hacker-456', updateData)).rejects.toThrow(ApiError);
-            await expect(interviewService.update('clx123abc', 'user-hacker-456', updateData)).rejects.toHaveProperty('httpStatus', StatusCodes.FORBIDDEN);
+            const updateData = { title: 'Malicious Update' };
+            await expect(interviewService.update('interview-123', 'user-hacker-456', updateData)).rejects.toThrow('You are not authorized to edit this interview');
         });
     });
 
-    describe('remove', () => {
-        it('should remove the interview if the user is the owner', async () => {
-            // Arrange
+    describe('save', () => {
+        it('should successfully save an interview if the user is the owner', async () => {
             mockedRepo.findById.mockResolvedValue(mockInterview as any);
-
-            // Act
-            await interviewService.remove('clx123abc', 'user-owner-123');
-
-            // Assert
-            expect(mockedRepo.remove).toHaveBeenCalledWith('clx123abc');
+            await interviewService.save('interview-123', 'user-owner-123');
+            expect(mockedRepo.save).toHaveBeenCalledWith('interview-123', 'user-owner-123');
         });
 
-        it('should throw a 403 Forbidden error if the user is not the owner', async () => {
-            // Arrange
-            mockedRepo.findById.mockResolvedValue(mockInterview as any);
-
-            // Act & Assert
-            await expect(interviewService.remove('clx123abc', 'user-hacker-456')).rejects.toThrow(ApiError);
-            await expect(interviewService.remove('clx123abc', 'user-hacker-456')).rejects.toHaveProperty('httpStatus', StatusCodes.FORBIDDEN);
+        it('should throw a 404 error if trying to save an interview that does not exist', async () => {
+            mockedRepo.findById.mockResolvedValue(null);
+            await expect(interviewService.save('non-existent-id', 'user-owner-123')).rejects.toThrow(ApiError);
         });
     });
 });

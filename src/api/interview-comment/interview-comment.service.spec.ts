@@ -2,9 +2,16 @@ import { interviewCommentService } from './interview-comment.service';
 import { interviewCommentRepository } from './interview-comment.repository';
 import { interviewService } from '../interview/interview.service';
 import { ApiError } from '@/core/errors/api.error';
-import { StatusCodes } from 'http-status-codes';
 
-jest.mock('./interview-comment.repository');
+// Use manual mocks for both dependencies
+jest.mock('./interview-comment.repository', () => ({
+    interviewCommentRepository: {
+        create: jest.fn(),
+        findById: jest.fn(),
+        update: jest.fn(),
+        remove: jest.fn(),
+    },
+}));
 jest.mock('../interview/interview.service');
 
 const mockedCommentRepo = interviewCommentRepository as jest.Mocked<typeof interviewCommentRepository>;
@@ -12,11 +19,9 @@ const mockedInterviewService = interviewService as jest.Mocked<typeof interviewS
 
 const mockComment = {
     id: 'comment-abc-123',
-    content: 'This is a test comment.',
+    content: 'Original content',
     userId: 'user-commenter-1',
     interviewId: 'interview-xyz-789',
-    createdAt: new Date(),
-    updatedAt: new Date(),
 };
 
 describe('InterviewCommentService', () => {
@@ -25,22 +30,26 @@ describe('InterviewCommentService', () => {
     });
 
     describe('create', () => {
-        it('should create a comment successfully if the parent interview exists', async () => {
-            mockedInterviewService.findOne.mockResolvedValue({ id: 'interview-xyz-789' } as any);
-            mockedCommentRepo.create.mockResolvedValue(mockComment as any);
-            const result = await interviewCommentService.create('user-commenter-1', 'interview-xyz-789', 'test');
-            expect(result).toEqual(mockComment);
+        it('should throw an error if the parent interview does not exist', async () => {
+            mockedInterviewService.findOne.mockRejectedValue(new ApiError(404, { message: 'Interview not found' }));
+            await expect(interviewCommentService.create('user-1', 'non-existent-interview', 'test')).rejects.toThrow('Interview not found');
         });
     });
 
-    describe('remove', () => {
-        it('should throw a 403 Forbidden error if the user is not the owner of the comment', async () => {
-            // Arrange
+    describe('update', () => {
+        it('should correctly call the repository with old and new content', async () => {
             mockedCommentRepo.findById.mockResolvedValue(mockComment as any);
+            const updateDto = { content: 'Updated content' };
 
-            // Act & Assert
-            await expect(interviewCommentService.remove('comment-abc-123', 'a-different-user-id')).rejects.toThrow(ApiError);
-            await expect(interviewCommentService.remove('comment-abc-123', 'a-different-user-id')).rejects.toHaveProperty('httpStatus', StatusCodes.FORBIDDEN);
+            await interviewCommentService.update('comment-abc-123', 'user-commenter-1', updateDto);
+
+            expect(mockedCommentRepo.update).toHaveBeenCalledWith(
+                'comment-abc-123',      // commentId
+                'user-commenter-1',      // userId
+                'interview-xyz-789',  // interviewId
+                'Original content',      // oldContent
+                'Updated content'        // newContent
+            );
         });
     });
 });

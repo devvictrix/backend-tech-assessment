@@ -89,12 +89,19 @@ class InterviewRepository {
         return prisma.interview.delete({ where: { id } });
     }
 
-    public async findPaginated(options: PaginationQueryDto) {
-        const { page, limit } = options;
+    public async findPaginated(options: PaginationQueryDto & { isSaved?: 'true' | 'false' }) {
+        const { page, limit, isSaved } = options;
         const skip = (page - 1) * limit;
 
+        const where: Prisma.InterviewWhereInput = {};
+        if (isSaved !== undefined) {
+            where.isSaved = isSaved === 'true';
+        } else {
+            where.isSaved = false;
+        }
+
         const [total, interviews] = await prisma.$transaction([
-            prisma.interview.count(),
+            prisma.interview.count({ where }),
             prisma.interview.findMany({
                 where: {
                     isSaved: false,

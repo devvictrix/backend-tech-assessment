@@ -1,33 +1,16 @@
 import app from './app';
-import { prisma } from './config';
 import { env } from './config/env';
 import { logger } from './config/logger';
+import { initializeProcessListeners } from '@/core/process/handler';
 
-const server = app.listen(env.PORT, () => {
-    logger.info(`Server is running on ${env.APP_URL}`);
-});
-
-const gracefulShutdown = (signal: string) => {
-    process.on(signal, async () => {
-        logger.info(`${signal} signal received: closing HTTP server.`);
-        server.close(async () => {
-            logger.info('HTTP server closed.');
-            await prisma.$disconnect();
-            logger.info('Prisma client disconnected.');
-            process.exit(0);
-        });
+try {
+    const server = app.listen(env.PORT, () => {
+        logger.info(`✅ Server is running on ${env.APP_URL}`);
     });
-};
 
-gracefulShutdown('SIGTERM');
-gracefulShutdown('SIGINT');
-
-process.on('unhandledRejection', (reason: Error, promise: Promise<any>) => {
-    logger.fatal(reason, 'Unhandled Rejection at Promise');
-    throw reason;
-});
-
-process.on('uncaughtException', (error: Error) => {
-    logger.fatal(error, 'Uncaught Exception thrown');
+    // Initialize the process listeners and pass the server instance to them
+    initializeProcessListeners(server);
+} catch (error) {
+    logger.fatal(error, '❌ Failed to start server');
     process.exit(1);
-});
+}

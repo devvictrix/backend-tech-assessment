@@ -156,15 +156,15 @@ export const swaggerSpec = {
                     "204": { description: "Interview deleted successfully." },
                 },
             },
-            '/api/v1/interviews/{id}/save': {
-                patch: {
-                    tags: ['Interview'],
-                    summary: 'Save (archive) an interview',
-                    security: [{ bearerAuth: [] }],
-                    parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
-                    responses: { '200': { description: 'Interview saved successfully.' } },
-                },
-            }
+        },
+        '/api/v1/interviews/{id}/save': {
+            patch: {
+                tags: ['Interview'],
+                summary: 'Save (archive) an interview',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
+                responses: { '200': { description: 'Interview saved successfully.' } },
+            },
         },
         "/api/v1/interviews/{interviewId}/comments": {
             get: {
